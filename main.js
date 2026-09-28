@@ -1,55 +1,56 @@
-import 'src/style.css'
-import heroImg from 'src/assets/hero.png'
+import data from './src/services/datos.js'
+import {
+    getBookById,
+    getBookIndexById,
+    bookExists,
+    booksFromUser,
+    booksFromModule,
+    booksCheeperThan,
+    booksWithStatus,
+    averagePriceOfBooks,
+    booksOfTypeNotes,
+    booksNotSold,
+    incrementPriceOfbooks,
+    getUserById,
+    getUserIndexById,
+    getUserByNickName,
+    getModuleByCode,
+} from './src/functions.js'
 
-document.querySelector('#app').innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.js</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+const { books, users, modules } = data
 
-<div class="ticks"></div>
+function mostrar(titulo, funcion) {
+    try {
+        console.log(titulo, funcion())
+    } catch (error) {
+        console.error(titulo, error)
+    }
+}
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-          <img class="button-icon" src="${javascriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+// Libros
+mostrar('getBookById(6):', () => getBookById(books, 6))
+mostrar('getBookById(99):', () => getBookById(books, 99))
+mostrar('getBookIndexById(7):', () => getBookIndexById(books, 7))
+mostrar('getBookIndexById(99):', () => getBookIndexById(books, 99))
+mostrar('bookExists(4, "5025"):', () => bookExists(books, 4, '5025'))
+mostrar('bookExists(2, "5021"):', () => bookExists(books, 2, '5021'))
+mostrar('booksFromUser(4):', () => booksFromUser(books, 4))
+mostrar('booksFromModule("5021"):', () => booksFromModule(books, '5021'))
+mostrar('booksCheeperThan(20):', () => booksCheeperThan(books, 20))
+mostrar('booksWithStatus("good"):', () => booksWithStatus(books, 'good'))
+mostrar('averagePriceOfBooks():', () => averagePriceOfBooks(books))
+mostrar('booksOfTypeNotes():', () => booksOfTypeNotes(books))
+mostrar('booksNotSold():', () => booksNotSold(books))
+mostrar('incrementPriceOfbooks(0.1):', () => incrementPriceOfbooks(books, 0.1))
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+// Usuarios
+mostrar('getUserById(3):', () => getUserById(users, 3))
+mostrar('getUserById(99):', () => getUserById(users, 99))
+mostrar('getUserIndexById(4):', () => getUserIndexById(users, 4))
+mostrar('getUserIndexById(99):', () => getUserIndexById(users, 99))
+mostrar('getUserByNickName("Marta"):', () => getUserByNickName(users, 'Marta'))
+mostrar('getUserByNickName("Nadie"):', () => getUserByNickName(users, 'Nadie'))
 
-setupCounter(document.querySelector('#counter'))
+// Módulos
+mostrar('getModuleByCode("0612"):', () => getModuleByCode(modules, '0612'))
+mostrar('getModuleByCode("XXXX"):', () => getModuleByCode(modules, 'XXXX'))
