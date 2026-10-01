@@ -1,21 +1,21 @@
 import data from './src/services/datos.js'
-import {
-    booksFromUser,
-    booksFromModule,
-    booksWithStatus,
-    incrementPriceOfbooks,
-} from './src/functions.js'
+import Books from './src/model/books.class.js'
+import Users from './src/model/users.class.js'
+import Modules from './src/model/modules.class.js'
 
-const { books } = data
+const books = new Books()
+const users = new Users()
+const modules = new Modules()
 
-// Todos los libros del usuario 4
-console.log('Libros del usuario 4:', booksFromUser(books, 4))
+books.populate(data.books)
+users.populate(data.users)
+modules.populate(data.modules)
 
-// Todos los libros del módulo 5021 que están en buen estado
-console.log(
-    'Libros del módulo 5021 en buen estado:',
-    booksWithStatus(booksFromModule(books, '5021'), 'good')
-)
+// Todos los libros del módulo 5021
+console.log('Libros del módulo 5021:', books.booksFromModule('5021'))
+
+// Libros con estado "new"
+console.log('Libros nuevos:', books.booksWithStatus('new'))
 
 // Incrementar un 10% el precio de los libros
-console.log('Libros con el precio incrementado un 10%:', incrementPriceOfbooks(books, 0.1))
+console.log('Libros con el precio incrementado un 10%:', books.incrementPriceOfbooks(0.1))

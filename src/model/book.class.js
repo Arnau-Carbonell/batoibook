@@ -7,7 +7,7 @@ export default class Book {
         this.price = bookData.price;
         this.pages = bookData.pages;
         this.status = bookData.status;
-        this.photos = bookData.photos ?? "";
+        this.photos = bookData.photos ?? bookData.photo ?? "";
         this.comments = bookData.comments ?? "";
         this.soldDate = bookData.soldDate ?? "";
     }
