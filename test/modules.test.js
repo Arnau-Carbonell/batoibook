@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import Modules from '../src/model/modules.class.js'
 import Module from '../src/model/module.class.js'
+import { server, resetDB } from './mocks/server.js'
 
 const modulesData = [
   { code: '0373', cliteral: 'Módulo X', vliteral: 'Mòdul X', courseId: '41' },
@@ -9,9 +10,14 @@ const modulesData = [
 
 let modules
 
-beforeEach(() => {
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+beforeEach(async () => {
+  resetDB({ modules: modulesData })
   modules = new Modules()
-  modules.populate(modulesData)
+  await modules.populate()
 })
 
 describe('Modules constructor y populate', () => {

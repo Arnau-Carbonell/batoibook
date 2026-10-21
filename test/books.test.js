@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import Books from '../src/model/books.class.js'
 import Book from '../src/model/book.class.js'
+import { server, resetDB, getDB } from './mocks/server.js'
 
-// Mismo fixture que en functions.test.js. La diferencia es que ahora los
-// datos viven dentro de la instancia: se crea una nueva en cada test
-// (beforeEach) para que lo que añade o borra un test no afecte a los demás.
+// Los datos viven en una BBDD simulada con msw (test/mocks/server.js). Se
+// reinicia en cada test (beforeEach) para que lo que añade o borra un test no
+// afecte a los demás.
 const booksData = [
   { id: 1, userId: 7,  moduleCode: '0373', publisher: 'Apunts', price: 12, pages: 40,  status: 'good', comments: '', soldDate: '' },
   { id: 2, userId: 7,  moduleCode: '0373', publisher: 'Anaya',  price: 28, pages: 180, status: 'new',  comments: '', soldDate: '2024-03-10' },
@@ -19,9 +20,14 @@ const newBookData = () => ({ userId: 9, moduleCode: '0487', publisher: 'SM', pri
 
 let books
 
-beforeEach(() => {
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+beforeEach(async () => {
+  resetDB({ books: booksData })
   books = new Books()
-  books.populate(booksData)
+  await books.populate()
 })
 
 describe('Books constructor y populate', () => {
@@ -35,69 +41,57 @@ describe('Books constructor y populate', () => {
     expect(books.data[0].id).toBe(1)
   })
 
-  test('populate con un array vacío deja la colección vacía', () => {
-    books.populate([])
+  test('populate con la tabla vacía deja la colección vacía', async () => {
+    resetDB({ books: [] })
+    await books.populate()
     expect(books.data).toEqual([])
   })
 })
 
 describe('addBook', () => {
-  test('añade el libro y devuelve el objeto creado', () => {
-    const book = books.addBook(newBookData())
+  test('añade el libro en la BBDD y en data y devuelve el objeto creado', async () => {
+    const book = await books.addBook(newBookData())
     expect(book).toBeInstanceOf(Book)
     expect(book.id).toBe(8)
     expect(book.publisher).toBe('SM')
     expect(books.data).toHaveLength(booksData.length + 1)
     expect(books.data).toContain(book)
+    expect(getDB().books).toHaveLength(booksData.length + 1)
   })
 
-  test('en una colección vacía el primer id es 1', () => {
+  test('la id la asigna la BBDD', async () => {
+    resetDB({ books: [] })
     const empty = new Books()
-    expect(empty.addBook(newBookData()).id).toBe(1)
-  })
-
-  test('ignora la id que se le pasa si ya está en uso', () => {
-    const book = books.addBook({ ...newBookData(), id: 1 })
-    expect(book.id).not.toBe(1)
-    expect(books.data.filter(b => b.id === 1)).toHaveLength(1)
-  })
-
-  test('nunca genera una id repetida aunque los ids no estén ordenados', () => {
-    books.populate([
-      { ...booksData[0], id: 2 },
-      { ...booksData[1], id: 1 },
-    ])
-    const book = books.addBook(newBookData())
-    const ids = books.data.map(b => b.id)
-    expect(new Set(ids).size).toBe(ids.length)
-    expect(book.id).toBe(3)
+    expect((await empty.addBook(newBookData())).id).toBe(1)
   })
 })
 
 describe('removeBook', () => {
-  test('elimina el libro indicado', () => {
-    books.removeBook(3)
+  test('elimina el libro indicado de la BBDD y de data', async () => {
+    await books.removeBook(3)
     expect(books.data).toHaveLength(booksData.length - 1)
     expect(books.data.some(book => book.id === 3)).toBe(false)
+    expect(getDB().books.some(book => book.id === 3)).toBe(false)
   })
 
-  test('lanza una excepción si el libro no existe y no borra nada', () => {
-    expect(() => books.removeBook(500)).toThrow(Error)
+  test('lanza una excepción si el libro no existe y no borra nada', async () => {
+    await expect(books.removeBook(500)).rejects.toThrow(Error)
     expect(books.data).toHaveLength(booksData.length)
   })
 })
 
 describe('changeBook', () => {
-  test('modifica el libro indicado y devuelve el objeto modificado', () => {
-    const changed = books.changeBook({ ...booksData[2], price: 99 })
+  test('modifica el libro indicado y devuelve el objeto modificado', async () => {
+    const changed = await books.changeBook({ ...booksData[2], price: 99 })
     expect(changed).toBeInstanceOf(Book)
     expect(changed.price).toBe(99)
     expect(books.getBookById(3).price).toBe(99)
     expect(books.data).toHaveLength(booksData.length)
+    expect(getDB().books.find(book => book.id === 3).price).toBe(99)
   })
 
-  test('lanza una excepción si el libro no existe', () => {
-    expect(() => books.changeBook({ ...booksData[0], id: 500 })).toThrow(Error)
+  test('lanza una excepción si el libro no existe', async () => {
+    await expect(books.changeBook({ ...booksData[0], id: 500 })).rejects.toThrow(Error)
     expect(books.data).toHaveLength(booksData.length)
   })
 })
@@ -200,8 +194,9 @@ describe('booksOfTypeNotes', () => {
     expect(books.booksOfTypeNotes().map(b => b.id)).toEqual([1, 3, 5])
   })
 
-  test('devuelve [] si no hay apuntes', () => {
-    books.populate(booksData.filter(b => b.publisher !== 'Apunts'))
+  test('devuelve [] si no hay apuntes', async () => {
+    resetDB({ books: booksData.filter(b => b.publisher !== 'Apunts') })
+    await books.populate()
     expect(books.booksOfTypeNotes()).toEqual([])
   })
 })
@@ -211,26 +206,9 @@ describe('booksNotSold', () => {
     expect(books.booksNotSold().map(b => b.id)).toEqual([1, 3, 4, 6, 7])
   })
 
-  test('devuelve [] si todos están vendidos', () => {
-    books.populate(booksData.filter(b => b.soldDate !== ''))
+  test('devuelve [] si todos están vendidos', async () => {
+    resetDB({ books: booksData.filter(b => b.soldDate !== '') })
+    await books.populate()
     expect(books.booksNotSold()).toEqual([])
-  })
-})
-
-describe('incrementPriceOfbooks', () => {
-  test('devuelve los libros con el precio incrementado', () => {
-    const result = books.incrementPriceOfbooks(0.1)
-    expect(result).toHaveLength(booksData.length)
-    expect(result[0].price).toBeCloseTo(13.2)
-    expect(result[5].price).toBeCloseTo(44)
-  })
-
-  test('devuelve instancias de Book', () => {
-    books.incrementPriceOfbooks(0.1).forEach(book => expect(book).toBeInstanceOf(Book))
-  })
-
-  test('no modifica los libros de la colección', () => {
-    books.incrementPriceOfbooks(0.1)
-    expect(books.getBookById(1).price).toBe(12)
   })
 })

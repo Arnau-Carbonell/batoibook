@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import Users from '../src/model/users.class.js'
 import User from '../src/model/user.class.js'
+import { server, resetDB, getDB } from './mocks/server.js'
 
 const usersData = [
   { id: 7,  nick: 'Laura',  email: 'laura@x.com',  password: 'abcd' },
@@ -13,9 +14,14 @@ const newUserData = () => ({ nick: 'Pau', email: 'pau@x.com', password: '1234' }
 
 let users
 
-beforeEach(() => {
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+beforeEach(async () => {
+  resetDB({ users: usersData })
   users = new Users()
-  users.populate(usersData)
+  await users.populate()
 })
 
 describe('Users constructor y populate', () => {
@@ -31,58 +37,63 @@ describe('Users constructor y populate', () => {
 })
 
 describe('addUser', () => {
-  test('añade el usuario y devuelve el objeto creado', () => {
-    const user = users.addUser(newUserData())
+  test('añade el usuario en la BBDD y en data y devuelve el objeto creado', async () => {
+    const user = await users.addUser(newUserData())
     expect(user).toBeInstanceOf(User)
     expect(user.id).toBe(11)
     expect(user.nick).toBe('Pau')
     expect(users.data).toHaveLength(usersData.length + 1)
     expect(users.data).toContain(user)
+    expect(getDB().users).toHaveLength(usersData.length + 1)
   })
 
-  test('en una colección vacía el primer id es 1', () => {
-    expect(new Users().addUser(newUserData()).id).toBe(1)
-  })
-
-  test('ignora la id que se le pasa si ya está en uso', () => {
-    const user = users.addUser({ ...newUserData(), id: 7 })
-    expect(user.id).not.toBe(7)
-    expect(users.data.filter(u => u.id === 7)).toHaveLength(1)
-  })
-
-  test('nunca genera una id repetida aunque los ids no estén ordenados', () => {
-    users.populate([usersData[1], usersData[0]]) // ids 8, 7
-    const user = users.addUser(newUserData())
-    const ids = users.data.map(u => u.id)
-    expect(new Set(ids).size).toBe(ids.length)
-    expect(user.id).toBe(9)
+  test('la id la asigna la BBDD', async () => {
+    resetDB({ users: [] })
+    expect((await new Users().addUser(newUserData())).id).toBe(1)
   })
 })
 
 describe('removeUser', () => {
-  test('elimina el usuario indicado', () => {
-    users.removeUser(8)
+  test('elimina el usuario indicado de la BBDD y de data', async () => {
+    await users.removeUser(8)
     expect(users.data).toHaveLength(usersData.length - 1)
     expect(users.data.some(user => user.id === 8)).toBe(false)
+    expect(getDB().users.some(user => user.id === 8)).toBe(false)
   })
 
-  test('lanza una excepción si el usuario no existe y no borra nada', () => {
-    expect(() => users.removeUser(500)).toThrow(Error)
+  test('lanza una excepción si el usuario no existe y no borra nada', async () => {
+    await expect(users.removeUser(500)).rejects.toThrow(Error)
     expect(users.data).toHaveLength(usersData.length)
   })
 })
 
 describe('changeUser', () => {
-  test('modifica el usuario indicado y devuelve el objeto modificado', () => {
-    const changed = users.changeUser({ ...usersData[1], email: 'nuevo@x.com' })
+  test('modifica el usuario indicado y devuelve el objeto modificado', async () => {
+    const changed = await users.changeUser({ ...usersData[1], email: 'nuevo@x.com' })
     expect(changed).toBeInstanceOf(User)
     expect(changed.email).toBe('nuevo@x.com')
     expect(users.getUserById(8).email).toBe('nuevo@x.com')
     expect(users.data).toHaveLength(usersData.length)
+    expect(getDB().users.find(user => user.id === 8).email).toBe('nuevo@x.com')
   })
 
-  test('lanza una excepción si el usuario no existe', () => {
-    expect(() => users.changeUser({ ...usersData[0], id: 500 })).toThrow(Error)
+  test('lanza una excepción si el usuario no existe', async () => {
+    await expect(users.changeUser({ ...usersData[0], id: 500 })).rejects.toThrow(Error)
+  })
+})
+
+describe('changeUserPassword', () => {
+  test('cambia la contraseña en la BBDD y en data', async () => {
+    const changed = await users.changeUserPassword(9, 'nueva')
+    expect(changed).toBeInstanceOf(User)
+    expect(changed.password).toBe('nueva')
+    expect(users.getUserById(9).password).toBe('nueva')
+    expect(users.getUserById(9).nick).toBe('Marta')
+    expect(getDB().users.find(user => user.id === 9).password).toBe('nueva')
+  })
+
+  test('lanza una excepción si el usuario no existe', async () => {
+    await expect(users.changeUserPassword(500, 'nueva')).rejects.toThrow(Error)
   })
 })
 

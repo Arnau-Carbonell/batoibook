@@ -1,37 +1,32 @@
 import Book from './book.class.js';
+import { getDBBooks, addDBBook, removeDBBook, changeDBBook } from '../services/books.api.js';
 
 export default class Books {
     constructor() {
         this.data = [];
     }
 
-    populate(books) {
-        this.data = books.map(book => new Book(book));
+    async populate() {
+        const booksData = await getDBBooks();
+        this.data = booksData.map(bookData => new Book(bookData));
     }
 
-    addBook(bookData) {
-        const id = this.data.reduce((max, book) => Math.max(max, book.id), 0) + 1;
-        const book = new Book({ ...bookData, id });
-        this.data.push(book);
-        return book;
+    async addBook(bookData) {
+        const newBook = new Book(await addDBBook(bookData));
+        this.data.push(newBook);
+        return newBook;
     }
 
-    removeBook(bookId) {
-        const book = this.data.find(book => book.id === bookId);
-        if (!book) {
-            throw new Error(`No existe el libro con id ${bookId}`);
-        }
+    async removeBook(bookId) {
+        await removeDBBook(bookId);
         this.data = this.data.filter(book => book.id !== bookId);
     }
 
-    changeBook(bookData) {
-        const index = this.data.findIndex(book => book.id === bookData.id);
-        if (index === -1) {
-            throw new Error(`No existe el libro con id ${bookData.id}`);
-        }
-        const newBook = new Book(bookData);
-        this.data[index] = newBook;
-        return newBook;
+    async changeBook(bookData) {
+        const updatedBook = new Book(await changeDBBook(bookData));
+        const index = this.getBookIndexById(bookData.id);
+        this.data[index] = updatedBook;
+        return updatedBook;
     }
 
     toString() {
@@ -92,11 +87,4 @@ export default class Books {
     booksNotSold() {
         return this.data.filter(book => book.soldDate === "")
     }
-    incrementPriceOfbooks(percentage) {
-        return this.data.map(book => new Book({
-            ...book,
-            price: book.price * (1 + percentage),
-        }));
-    }
-
 }   

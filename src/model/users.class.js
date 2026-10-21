@@ -1,37 +1,34 @@
 import User from './user.class.js';
+import { getDBUsers, addDBUser, removeDBUser, changeDBUser, changeDBUserPassword } from '../services/users.api.js';
 
 export default class Users {
     constructor() {
         this.data = [];
     }
 
-    populate(users) {
+    async populate() {
+        const users = await getDBUsers();
         this.data = users.map(user => new User(user.id, user.nick, user.email, user.password));
     }
 
-    addUser(userData) {
-        const id = this.data.reduce((max, user) => Math.max(max, user.id), 0) + 1;
-        const user = new User(id, userData.nick, userData.email, userData.password);
-        this.data.push(user);
-        return user;
+    async addUser(userData) {
+        const user = await addDBUser(userData);
+        const newUser = new User(user.id, user.nick, user.email, user.password);
+        this.data.push(newUser);
+        return newUser;
     }
 
-    removeUser(userId) {
-        const user = this.data.find(user => user.id === userId);
-        if (!user) {
-            throw new Error(`No existe el usuario con id ${userId}`);
-        }
+    async removeUser(userId) {
+        await removeDBUser(userId);
         this.data = this.data.filter(user => user.id !== userId);
     }
 
-    changeUser(userData) {
-        const index = this.data.findIndex(user => user.id === userData.id);
-        if (index === -1) {
-            throw new Error(`No existe el usuario con id ${userData.id}`);
-        }
-        const newUser = new User(userData.id, userData.nick, userData.email, userData.password);
-        this.data[index] = newUser;
-        return newUser;
+    async changeUser(userData) {
+        const user = await changeDBUser(userData);
+        const updatedUser = new User(user.id, user.nick, user.email, user.password);
+        const index = this.getUserIndexById(userData.id);
+        this.data[index] = updatedUser;
+        return updatedUser;
     }
 
     toString() {
@@ -67,5 +64,13 @@ export default class Users {
         }
 
         return user;
+    }
+
+    async changeUserPassword(userId, newPassword) {
+        const user = await changeDBUserPassword(userId, newPassword);
+        const updatedUser = new User(user.id, user.nick, user.email, user.password);
+        const index = this.getUserIndexById(userId);
+        this.data[index] = updatedUser;
+        return updatedUser;
     }
 }
