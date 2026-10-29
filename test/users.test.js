@@ -72,7 +72,7 @@ describe('changeUser', () => {
     const changed = await users.changeUser({ ...usersData[1], email: 'nuevo@x.com' })
     expect(changed).toBeInstanceOf(User)
     expect(changed.email).toBe('nuevo@x.com')
-    expect(users.getUserById(8).email).toBe('nuevo@x.com')
+    expect((await users.getUserById(8)).email).toBe('nuevo@x.com')
     expect(users.data).toHaveLength(usersData.length)
     expect(getDB().users.find(user => user.id === 8).email).toBe('nuevo@x.com')
   })
@@ -87,8 +87,8 @@ describe('changeUserPassword', () => {
     const changed = await users.changeUserPassword(9, 'nueva')
     expect(changed).toBeInstanceOf(User)
     expect(changed.password).toBe('nueva')
-    expect(users.getUserById(9).password).toBe('nueva')
-    expect(users.getUserById(9).nick).toBe('Marta')
+    expect((await users.getUserById(9)).password).toBe('nueva')
+    expect((await users.getUserById(9)).nick).toBe('Marta')
     expect(getDB().users.find(user => user.id === 9).password).toBe('nueva')
   })
 
@@ -106,12 +106,18 @@ describe('toString', () => {
 })
 
 describe('getUserById', () => {
-  test('devuelve el usuario con esa id', () => {
-    expect(users.getUserById(9).nick).toBe('Marta')
+  test('devuelve el usuario con esa id', async () => {
+    expect((await users.getUserById(9)).nick).toBe('Marta')
   })
 
-  test('lanza una excepción si no existe', () => {
-    expect(() => users.getUserById(500)).toThrow(Error)
+  test('obtiene el usuario del servidor sin necesitar un populate() previo', async () => {
+    const user = await new Users().getUserById(10)
+    expect(user).toBeInstanceOf(User)
+    expect(user).toEqual(usersData[3])
+  })
+
+  test('rechaza la promesa si el usuario no existe', async () => {
+    await expect(new Users().getUserById(500)).rejects.toThrow(Error)
   })
 })
 

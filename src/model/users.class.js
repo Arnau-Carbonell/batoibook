@@ -1,5 +1,5 @@
 import User from './user.class.js';
-import { getDBUsers, addDBUser, removeDBUser, changeDBUser, changeDBUserPassword } from '../services/users.api.js';
+import { getDBUsers, getDBUser, addDBUser, removeDBUser, changeDBUser, changeDBUserPassword } from '../services/users.api.js';
 
 export default class Users {
     constructor() {
@@ -35,15 +35,9 @@ export default class Users {
         return this.data.map(user => `ID: ${user.id}, Nick: ${user.nick}, Email: ${user.email}, Password: ${user.password}`).join('\n');
     }
 
-    getUserById(number) {
-
-        const user = this.data.find(user => user.id === number)
-
-        if (user === undefined) {
-            throw new Error(`No existe el usuario con id ${number}`)
-        }
-
-        return user;
+    async getUserById(number) {
+        const user = await getDBUser(number);
+        return new User(user.id, user.nick, user.email, user.password);
     }
 
     getUserIndexById(number) {
