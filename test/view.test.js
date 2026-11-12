@@ -129,21 +129,123 @@ describe('showMessage', () => {
   })
 })
 
-describe('Formulario de añadir libro', () => {
+describe('Botones de las tarjetas', () => {
+  test('cada tarjeta tiene los botones de carrito, editar y borrar con sus iconos', () => {
+    const card = view.renderBook(new Book(booksData[0]), modulesData[0])
+    const icons = [...card.querySelectorAll('.card-actions button .material-icons')].map(icon => icon.textContent)
+    expect(icons).toEqual(['add_shopping_cart', 'edit', 'delete'])
+  })
+
+  test('al pulsar el carrito el callback recibe la id del libro', () => {
+    const handler = vi.fn()
+    view.bindAddToCart(handler)
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.booksList.querySelector('.card[data-id="2"] button[data-action="cart"] .material-icons').click()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler).toHaveBeenCalledWith('2')
+  })
+
+  test('al pulsar editar el callback recibe la id del libro', () => {
+    const handler = vi.fn()
+    view.bindEditBook(handler)
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.booksList.querySelector('.card[data-id="1"] button[data-action="edit"]').click()
+
+    expect(handler).toHaveBeenCalledWith('1')
+  })
+
+  test('los escuchadores funcionan con tarjetas pintadas después de enlazarlos', () => {
+    const handler = vi.fn()
+    view.bindAddToCart(handler)
+    view.renderBooksList([new Book(booksData[0])], modulesData)
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.booksList.querySelector('.card[data-id="2"] button[data-action="cart"]').click()
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  test('al pulsar borrar pide confirmación mostrando la id y el módulo', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const handler = vi.fn()
+    view.bindRemoveBook(handler)
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.booksList.querySelector('.card[data-id="2"] button[data-action="delete"]').click()
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('2'))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Programación'))
+    expect(handler).toHaveBeenCalledWith('2')
+  })
+
+  test('si no se confirma el borrado no se llama al callback', () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const handler = vi.fn()
+    view.bindRemoveBook(handler)
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.booksList.querySelector('button[data-action="delete"]').click()
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  test('un botón de una acción no dispara los callbacks de las otras', () => {
+    const cart = vi.fn()
+    const edit = vi.fn()
+    view.bindAddToCart(cart)
+    view.bindEditBook(edit)
+    view.renderBooksList([new Book(booksData[0])], modulesData)
+
+    view.booksList.querySelector('button[data-action="edit"]').click()
+
+    expect(edit).toHaveBeenCalledTimes(1)
+    expect(cart).not.toHaveBeenCalled()
+  })
+})
+
+describe('renderUpdatedBook y removeBook', () => {
+  test('renderUpdatedBook sustituye la tarjeta del libro sin cambiar su posición', () => {
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+
+    view.renderUpdatedBook(new Book({ ...booksData[0], publisher: 'Santillana', price: 5 }), modulesData[0])
+
+    const cards = view.booksList.querySelectorAll('.card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0].dataset.id).toBe('1')
+    expect(cards[0].textContent).toContain('Santillana')
+    expect(cards[0].textContent).toContain('5 €')
+  })
+
+  test('removeBook quita la tarjeta del libro', () => {
+    view.renderBooksList(booksData.map(book => new Book(book)), modulesData)
+    view.removeBook(1)
+    expect([...view.booksList.querySelectorAll('.card')].map(card => card.dataset.id)).toEqual(['2'])
+  })
+})
+
+describe('Formulario de añadir y editar libro', () => {
   beforeEach(() => {
     view.renderModulesSelect(modulesData)
   })
 
+  test('inicialmente es de añadir: título "Añadir libro" y la id oculta', () => {
+    expect(view.formTitle.textContent).toBe('Añadir libro')
+    expect(view.idDiv.classList.contains('hidden')).toBe(true)
+  })
+
   test('al enviar el formulario el callback recibe los datos con los tipos adecuados', () => {
     const handler = vi.fn()
-    view.bindAddBook(handler)
+    view.bindSubmitBook(handler)
     fillBookForm(view.bookForm)
 
     view.bookForm.dispatchEvent(new Event('submit', { cancelable: true }))
 
     expect(handler).toHaveBeenCalledTimes(1)
     expect(handler).toHaveBeenCalledWith({
-      userId: 9,
+      id: '',
       moduleCode: '0485',
       publisher: 'SM',
       price: 19.5,
@@ -156,47 +258,71 @@ describe('Formulario de añadir libro', () => {
   })
 
   test('el envío no recarga la página (se cancela el evento por defecto)', () => {
-    view.bindAddBook(vi.fn())
+    view.bindSubmitBook(vi.fn())
     const event = new Event('submit', { cancelable: true })
     view.bookForm.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)
   })
 
-  test('al restablecer el formulario se limpian los campos sin eliminarlo', () => {
-    fillBookForm(view.bookForm)
+  test('renderEditForm cambia el título, muestra la id deshabilitada y rellena los campos', () => {
+    view.renderEditForm(new Book(booksData[1]))
+
+    const fields = view.bookForm.elements
+    expect(view.formTitle.textContent).toBe('Editar libro')
+    expect(view.idDiv.classList.contains('hidden')).toBe(false)
+    expect(view.idInput.disabled).toBe(true)
+    expect(view.idInput.value).toBe('2')
+    expect(fields.moduleCode.value).toBe('0485')
+    expect(fields.publisher.value).toBe('Anaya')
+    expect(fields.price.value).toBe('28')
+    expect(fields.pages.value).toBe('180')
+    expect(view.bookForm.querySelector('input[name="status"]:checked').value).toBe('new')
+    expect(fields.photo.value).toBe('foto2.png')
+    expect(fields.soldDate.value).toBe('2023-12-21')
+  })
+
+  test('al enviar en modo edición el callback recibe también la id', () => {
+    const handler = vi.fn()
+    view.bindSubmitBook(handler)
+    view.renderEditForm(new Book(booksData[0]))
+
+    view.bookForm.dispatchEvent(new Event('submit', { cancelable: true }))
+
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ id: '1', publisher: 'Apunts', price: 12 }))
+  })
+
+  test('resetForm limpia los campos sin eliminar el formulario y vuelve al modo añadir', () => {
+    view.renderEditForm(new Book(booksData[0]))
     view.resetForm()
 
     expect(document.getElementById('bookForm')).toBe(view.bookForm)
-    expect(view.bookForm.elements.userId.value).toBe('')
-    expect(view.bookForm.elements.moduleCode.value).toBe('')
+    expect(view.formTitle.textContent).toBe('Añadir libro')
+    expect(view.idDiv.classList.contains('hidden')).toBe(true)
+    expect(view.idInput.value).toBe('')
     expect(view.bookForm.elements.publisher.value).toBe('')
-    expect(view.bookForm.elements.comments.value).toBe('')
     expect(view.bookForm.querySelector('input[name="status"]:checked')).toBeNull()
     expect(view.moduleSelect.querySelectorAll('option')).toHaveLength(modulesData.length + 1)
   })
+
+  test('el botón Reset también vuelve al modo añadir', () => {
+    view.renderEditForm(new Book(booksData[0]))
+    view.bookForm.querySelector('button[type="reset"]').click()
+
+    expect(view.formTitle.textContent).toBe('Añadir libro')
+    expect(view.idDiv.classList.contains('hidden')).toBe(true)
+    expect(view.idInput.value).toBe('')
+  })
 })
 
-describe('Borrar libro', () => {
-  test('al solicitar una eliminación el callback recibe la id', () => {
-    const handler = vi.fn()
-    view.bindRemoveBook(handler)
-    view.removeInput.value = '2'
+describe('showPage', () => {
+  test('muestra sólo la página indicada', () => {
+    view.showPage('about')
+    expect(view.about.classList.contains('hidden')).toBe(false)
+    expect(view.booksList.classList.contains('hidden')).toBe(true)
+    expect(view.form.classList.contains('hidden')).toBe(true)
 
-    document.getElementById('remove-button').click()
-
-    expect(handler).toHaveBeenCalledTimes(1)
-    expect(handler).toHaveBeenCalledWith('2')
-    expect(view.messages.querySelector('.alert-error')).toBeNull()
-  })
-
-  test('si la id está vacía muestra un error y no llama al callback', () => {
-    const handler = vi.fn()
-    view.bindRemoveBook(handler)
-    view.removeInput.value = ''
-
-    document.getElementById('remove-button').click()
-
-    expect(handler).not.toHaveBeenCalled()
-    expect(view.messages.querySelector('.alert-error')).not.toBeNull()
+    view.showPage('list')
+    expect(view.booksList.classList.contains('hidden')).toBe(false)
+    expect(view.about.classList.contains('hidden')).toBe(true)
   })
 })

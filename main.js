@@ -18,19 +18,14 @@ document.querySelector('#app').innerHTML = `
   <div id="messages"></div>
 
   <main>
-    <div id="list"></div>
+    <div id="list" class="hidden"></div>
 
-    <div id="remove">
-      <label for="id-remove">Id del libro:</label>
-      <input type="number" id="id-remove" min="1" required>
-      <button type="button" id="remove-button">Borrar libro</button>
-    </div>
-
-    <div id="form">
+    <div id="form" class="hidden">
+      <h2 id="form-title">Añadir libro</h2>
       <form id="bookForm">
-        <div>
-          <label for="userId">Usuario:</label>
-          <input type="number" id="userId" name="userId" min="1" required>
+        <div id="id-div" class="hidden">
+          <label for="id">Id:</label>
+          <input type="text" id="id" name="id" disabled>
         </div>
         <div>
           <label for="moduleCode">Módulo:</label>
@@ -78,7 +73,7 @@ document.querySelector('#app').innerHTML = `
       </form>
     </div>
 
-    <div id="about">
+    <div id="about" class="hidden">
       <h2>Acerca de...</h2>
       <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
     </div>

@@ -3,15 +3,11 @@
 export const html = `
   <div id="messages"></div>
   <main>
-    <div id="list"></div>
-    <div id="remove">
-      <label for="id-remove">Id del libro:</label>
-      <input type="number" id="id-remove">
-      <button type="button" id="remove-button">Borrar libro</button>
-    </div>
-    <div id="form">
+    <div id="list" class="hidden"></div>
+    <div id="form" class="hidden">
+      <h2 id="form-title">Añadir libro</h2>
       <form id="bookForm">
-        <div><input type="number" id="userId" name="userId" required></div>
+        <div id="id-div" class="hidden"><input type="text" id="id" name="id" disabled></div>
         <div>
           <select id="moduleCode" name="moduleCode" required>
             <option value="">- Selecciona un módulo -</option>
@@ -34,7 +30,7 @@ export const html = `
         </div>
       </form>
     </div>
-    <div id="about"><p>Lorem ipsum</p></div>
+    <div id="about" class="hidden"><p>Lorem ipsum</p></div>
   </main>
 `
 
@@ -49,13 +45,13 @@ export const booksData = [
 ]
 
 export const usersData = [
+  { id: 2, nick: 'Yo', email: 'yo@x.com', password: 'abcd' },
   { id: 7, nick: 'Laura', email: 'laura@x.com', password: 'abcd' },
   { id: 8, nick: 'Carlos', email: 'carlos@x.com', password: 'abcd' },
 ]
 
 // Rellena el formulario de añadir libro con datos válidos.
 export function fillBookForm(form) {
-  form.elements.userId.value = '9'
   form.elements.moduleCode.value = '0485'
   form.elements.publisher.value = 'SM'
   form.elements.price.value = '19.5'
