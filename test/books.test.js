@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import Books from '../src/model/books.class.js'
 import Book from '../src/model/book.class.js'
+import { http, HttpResponse } from 'msw'
 import { server, resetDB, getDB } from './mocks/server.js'
 
 // Los datos viven en una BBDD simulada con msw (test/mocks/server.js). Se
@@ -129,12 +130,23 @@ describe('getBookIndexById', () => {
 })
 
 describe('bookExists', () => {
-  test('true si el usuario tiene un libro de ese módulo', () => {
-    expect(books.bookExists(7, '0485')).toBe(true)
+  test('true si el usuario tiene un libro de ese módulo', async () => {
+    expect(await books.bookExists(7, '0485')).toBe(true)
   })
 
-  test('false si no lo tiene', () => {
-    expect(books.bookExists(7, '0487')).toBe(false)
+  test('false si no lo tiene', async () => {
+    expect(await books.bookExists(7, '0487')).toBe(false)
+  })
+
+  test('pregunta al servidor, no a los datos locales', async () => {
+    getDB().books.push({ id: 8, userId: 7, moduleCode: '0487', publisher: 'SM', price: 5, pages: 10, status: 'new' })
+    expect(books.data.some(book => book.id === 8)).toBe(false)
+    expect(await books.bookExists(7, '0487')).toBe(true)
+  })
+
+  test('si el servidor falla lanza un error', async () => {
+    server.use(http.get('http://localhost:3000/books', () => new HttpResponse(null, { status: 500 })))
+    await expect(books.bookExists(7, '0485')).rejects.toThrow()
   })
 })
 

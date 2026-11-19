@@ -6,20 +6,22 @@ export const html = `
     <div id="list" class="hidden"></div>
     <div id="form" class="hidden">
       <h2 id="form-title">Añadir libro</h2>
-      <form id="bookForm">
+      <form id="bookForm" novalidate>
         <div id="id-div" class="hidden"><input type="text" id="id" name="id" disabled></div>
         <div>
           <select id="moduleCode" name="moduleCode" required>
             <option value="">- Selecciona un módulo -</option>
           </select>
+          <span id="moduleCode-error"></span>
         </div>
-        <div><input type="text" id="publisher" name="publisher" required></div>
-        <div><input type="number" id="price" name="price" step="0.01" required></div>
-        <div><input type="number" id="pages" name="pages" required></div>
+        <div><input type="text" id="publisher" name="publisher" required><span id="publisher-error"></span></div>
+        <div><input type="number" id="price" name="price" min="0" step="0.01" required><span id="price-error"></span></div>
+        <div><input type="number" id="pages" name="pages" min="1" step="1" required><span id="pages-error"></span></div>
         <div>
           <input type="radio" id="status-new" name="status" value="new" required>
           <input type="radio" id="status-good" name="status" value="good">
           <input type="radio" id="status-bad" name="status" value="bad">
+          <span id="status-error"></span>
         </div>
         <div><input type="url" id="photo" name="photo"></div>
         <div><textarea id="comments" name="comments"></textarea></div>

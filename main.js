@@ -22,7 +22,7 @@ document.querySelector('#app').innerHTML = `
 
     <div id="form" class="hidden">
       <h2 id="form-title">Añadir libro</h2>
-      <form id="bookForm">
+      <form id="bookForm" novalidate>
         <div id="id-div" class="hidden">
           <label for="id">Id:</label>
           <input type="text" id="id" name="id" disabled>
@@ -32,18 +32,22 @@ document.querySelector('#app').innerHTML = `
           <select id="moduleCode" name="moduleCode" required>
             <option value="">- Selecciona un módulo -</option>
           </select>
+          <span class="field-error" id="moduleCode-error"></span>
         </div>
         <div>
           <label for="publisher">Editorial:</label>
           <input type="text" id="publisher" name="publisher" required>
+          <span class="field-error" id="publisher-error"></span>
         </div>
         <div>
           <label for="price">Precio:</label>
           <input type="number" id="price" name="price" min="0" step="0.01" required>
+          <span class="field-error" id="price-error"></span>
         </div>
         <div>
           <label for="pages">Páginas:</label>
-          <input type="number" id="pages" name="pages" min="1" required>
+          <input type="number" id="pages" name="pages" min="1" step="1" required>
+          <span class="field-error" id="pages-error"></span>
         </div>
         <div>
           <span>Estado:</span>
@@ -53,6 +57,7 @@ document.querySelector('#app').innerHTML = `
           <label for="status-good">Bueno</label>
           <input type="radio" id="status-bad" name="status" value="bad">
           <label for="status-bad">Malo</label>
+          <span class="field-error" id="status-error"></span>
         </div>
         <div>
           <label for="photo">Foto (URL):</label>

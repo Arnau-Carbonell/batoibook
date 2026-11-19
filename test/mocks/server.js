@@ -25,7 +25,13 @@ const notFound = () => new HttpResponse(null, { status: 404 })
 
 function tableHandlers(table) {
   return [
-    http.get(`${SERVER}/${table}`, () => HttpResponse.json(db[table])),
+    // Como json-server: /books?userId=4&moduleCode=5021 devuelve un array con
+    // los que coinciden (comparando como texto), vacío si no hay ninguno
+    http.get(`${SERVER}/${table}`, ({ request }) => {
+      const filters = [...new URL(request.url).searchParams]
+      return HttpResponse.json(db[table].filter(item =>
+        filters.every(([key, value]) => String(item[key]) === value)))
+    }),
 
     http.get(`${SERVER}/${table}/:id`, ({ params }) => {
       const index = findIndex(table, params.id)

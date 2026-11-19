@@ -326,3 +326,188 @@ describe('showPage', () => {
     expect(view.about.classList.contains('hidden')).toBe(true)
   })
 })
+
+describe('Validación del formulario', () => {
+  const FIELDS = ['moduleCode', 'publisher', 'price', 'pages', 'status']
+  const error = name => document.getElementById(`${name}-error`).textContent
+  const submit = () => view.bookForm.dispatchEvent(new Event('submit', { cancelable: true }))
+  const type = (name, value) => {
+    const field = view.bookForm.elements[name]
+    field.value = value
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+  let handler
+
+  beforeEach(() => {
+    view.renderModulesSelect(modulesData)
+    handler = vi.fn()
+    view.bindSubmitBook(handler)
+  })
+
+  test('con el formulario vacío no se envía y se muestran a la vez los errores de todos los campos', () => {
+    submit()
+    expect(handler).not.toHaveBeenCalled()
+    FIELDS.forEach(name => expect(error(name)).not.toBe(''))
+  })
+
+  test('foto, comentarios y fecha de venta pueden quedarse vacíos', () => {
+    fillBookForm(view.bookForm)
+    type('photo', '')
+    type('comments', '')
+    submit()
+    expect(handler).toHaveBeenCalledTimes(1)
+    FIELDS.forEach(name => expect(error(name)).toBe(''))
+  })
+
+  test('sólo se muestra error en los campos incorrectos', () => {
+    fillBookForm(view.bookForm)
+    type('publisher', '')
+    submit()
+    expect(handler).not.toHaveBeenCalled()
+    expect(error('publisher')).not.toBe('')
+    expect(['moduleCode', 'price', 'pages', 'status'].map(error)).toEqual(['', '', '', ''])
+  })
+
+  test('el precio admite céntimos y 0', () => {
+    fillBookForm(view.bookForm)
+    type('price', '19.99')
+    submit()
+    type('price', '0')
+    submit()
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(handler).toHaveBeenLastCalledWith(expect.objectContaining({ price: 0 }))
+  })
+
+  test('precio vacío, negativo o con demasiados decimales dan mensajes distintos', () => {
+    fillBookForm(view.bookForm)
+    const messages = ['', '-1', '3.555'].map(value => {
+      type('price', value)
+      submit()
+      return error('price')
+    })
+    expect(handler).not.toHaveBeenCalled()
+    messages.forEach(message => expect(message).not.toBe(''))
+    expect(new Set(messages).size).toBe(3)
+  })
+
+  test('las páginas deben ser un entero mayor o igual que 1', () => {
+    fillBookForm(view.bookForm)
+    const messages = ['', '0', '3.5'].map(value => {
+      type('pages', value)
+      submit()
+      return error('pages')
+    })
+    expect(handler).not.toHaveBeenCalled()
+    expect(new Set(messages).size).toBe(3)
+    type('pages', '1')
+    submit()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  test('los mensajes son nuestros, no los del navegador', () => {
+    submit()
+    expect(error('publisher')).not.toBe(view.bookForm.elements.publisher.validationMessage)
+    expect(error('price')).toMatch(/precio/i)
+  })
+
+  test('al corregir un campo con error su mensaje se actualiza sin volver a enviar', () => {
+    fillBookForm(view.bookForm)
+    type('price', '-1')
+    submit()
+    const negative = error('price')
+    type('price', '1.234')
+    expect(error('price')).not.toBe(negative)
+    expect(error('price')).not.toBe('')
+    type('price', '1.23')
+    expect(error('price')).toBe('')
+  })
+
+  test('al marcar el estado desaparece su error', () => {
+    submit()
+    view.bookForm.querySelector('#status-good').click()
+    expect(error('status')).toBe('')
+  })
+
+  test('al pulsar Reset no queda ningún error', () => {
+    submit()
+    view.bookForm.querySelector('button[type="reset"]').click()
+    FIELDS.forEach(name => expect(error(name)).toBe(''))
+  })
+
+  test('al editar un libro no queda ningún error de antes y se valida igual', () => {
+    submit()
+    view.renderEditForm(new Book(booksData[0]))
+    FIELDS.forEach(name => expect(error(name)).toBe(''))
+
+    type('pages', '2.5')
+    submit()
+    expect(handler).not.toHaveBeenCalled()
+    expect(error('pages')).not.toBe('')
+  })
+})
+
+describe('Módulo repetido', () => {
+  const error = () => document.getElementById('moduleCode-error').textContent
+  const chooseModule = code => {
+    view.moduleSelect.value = code
+    view.moduleSelect.dispatchEvent(new Event('change', { bubbles: true }))
+  }
+
+  beforeEach(() => {
+    view.renderModulesSelect(modulesData)
+  })
+
+  test('al cambiar el módulo se avisa con el módulo y la id del libro', () => {
+    const handler = vi.fn()
+    view.bindModuleChange(handler)
+    chooseModule('0373')
+    expect(handler).toHaveBeenCalledWith('0373', '')
+  })
+
+  test('el error personalizado impide enviar y sólo se muestra el error del módulo', () => {
+    const submitHandler = vi.fn()
+    view.bindSubmitBook(submitHandler)
+    chooseModule('0373')
+    view.setModuleError('0373', '', 'Módulo repetido')
+
+    expect(error()).toBe('Módulo repetido')
+    expect(document.getElementById('publisher-error').textContent).toBe('')
+
+    fillBookForm(view.bookForm)
+    chooseModule('0373')
+    view.setModuleError('0373', '', 'Módulo repetido')
+    view.bookForm.dispatchEvent(new Event('submit', { cancelable: true }))
+    expect(submitHandler).not.toHaveBeenCalled()
+  })
+
+  test('al cambiar de módulo se quita el error personalizado', () => {
+    chooseModule('0373')
+    view.setModuleError('0373', '', 'Módulo repetido')
+    chooseModule('0485')
+    view.clearModuleError('0485', '')
+    expect(error()).toBe('')
+    expect(view.moduleSelect.validity.valid).toBe(true)
+  })
+
+  test('se ignora la respuesta de un módulo que ya no está elegido', () => {
+    chooseModule('0373')
+    chooseModule('0485')
+    view.setModuleError('0373', '', 'Módulo repetido')
+    expect(error()).toBe('')
+    expect(view.moduleSelect.validity.valid).toBe(true)
+  })
+
+  test('Reset y editar quitan el error personalizado', () => {
+    chooseModule('0373')
+    view.setModuleError('0373', '', 'Módulo repetido')
+    view.resetForm()
+    expect(error()).toBe('')
+    expect(view.moduleSelect.validity.customError).toBe(false)
+
+    chooseModule('0373')
+    view.setModuleError('0373', '', 'Módulo repetido')
+    view.renderEditForm(new Book(booksData[0]))
+    expect(error()).toBe('')
+    expect(view.moduleSelect.validity.customError).toBe(false)
+  })
+})

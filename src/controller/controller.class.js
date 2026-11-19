@@ -7,6 +7,7 @@ import Router from '../services/router.js';
 
 // Suponemos que ya nos hemos autenticado y somos el usuario 2
 const CURRENT_USER_ID = 2;
+const REPEATED_MODULE_MESSAGE = 'Ya tienes un libro de este módulo a la venta';
 
 export default class Controller {
     constructor() {
@@ -22,6 +23,7 @@ export default class Controller {
 
     async init() {
         this.view.bindSubmitBook(this.handleSubmitBook.bind(this));
+        this.view.bindModuleChange(this.handleModuleChange.bind(this));
         this.view.bindAddToCart(this.handleAddToCart.bind(this));
         this.view.bindEditBook(this.handleEditBook.bind(this));
         this.view.bindRemoveBook(this.handleRemoveBook.bind(this));
@@ -54,9 +56,42 @@ export default class Controller {
         return book;
     }
 
+    // ¿El usuario ya tiene otro libro de ese módulo? bookId es el libro que se
+    // está editando ('' o undefined si se añade uno nuevo).
+    async isModuleRepeated(moduleCode, bookId) {
+        if (!bookId) {
+            return this.model.books.bookExists(CURRENT_USER_ID, moduleCode);
+        }
+        const book = this.findBook(bookId);
+        // Si deja el módulo que ya tenía, el libro que encontraría el servidor es él mismo
+        if (book.moduleCode === moduleCode) {
+            return false;
+        }
+        return this.model.books.bookExists(book.userId, moduleCode);
+    }
+
+    async handleModuleChange(moduleCode, bookId) {
+        try {
+            if (await this.isModuleRepeated(moduleCode, bookId)) {
+                this.view.setModuleError(moduleCode, bookId, REPEATED_MODULE_MESSAGE);
+            } else {
+                this.view.clearModuleError(moduleCode, bookId);
+            }
+        } catch (error) {
+            // No sabemos si está repetido: no lo marcamos (lo volveremos a comprobar al guardar)
+            this.view.showMessage('error', `No se ha podido comprobar el módulo: ${error.message}`);
+        }
+    }
+
     async handleSubmitBook(payload) {
         const { id, ...bookData } = payload;
         try {
+            // Se vuelve a comprobar al guardar: el usuario puede haber enviado antes
+            // de que llegara la respuesta de la comprobación hecha al cambiar el módulo
+            if (await this.isModuleRepeated(bookData.moduleCode, id)) {
+                this.view.setModuleError(bookData.moduleCode, id, REPEATED_MODULE_MESSAGE);
+                throw new Error(REPEATED_MODULE_MESSAGE);
+            }
             if (id) {
                 const book = this.findBook(id);
                 const updatedBook = await this.model.books.changeBook({ ...bookData, id: book.id, userId: book.userId });
@@ -64,9 +99,6 @@ export default class Controller {
                 this.view.resetForm();
                 this.view.showMessage('info', 'Libro modificado');
             } else {
-                if (this.model.books.bookExists(CURRENT_USER_ID, bookData.moduleCode)) {
-                    throw new Error('Ya tienes un libro de ese módulo');
-                }
                 const newBook = await this.model.books.addBook({ ...bookData, userId: CURRENT_USER_ID });
                 this.view.renderBook(newBook, this.findModule(newBook.moduleCode));
                 this.view.resetForm();

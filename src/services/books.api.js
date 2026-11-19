@@ -1,7 +1,11 @@
 const SERVER = 'http://localhost:3000'
 
-export async function getDBBooks() {
-    const response = await fetch(`${SERVER}/books`);
+// filters: objeto con los campos por los que filtrar, p.ej. { userId: 4, moduleCode: '5021' }
+// hace GET /books?userId=4&moduleCode=5021. json-server devuelve siempre un array
+// (vacío si ningún libro cumple los filtros), nunca un 404.
+export async function getDBBooks(filters = {}) {
+    const query = new URLSearchParams(filters).toString();
+    const response = await fetch(`${SERVER}/books${query ? '?' + query : ''}`);
     if (!response.ok) {
         throw new Error(`Error ${response.status} al obtener los libros`);
     }

@@ -53,8 +53,11 @@ export default class Books {
         return index;
     }
 
-    bookExists(userId, moduleCode) {
-        return this.data.some(book => book.userId === userId && book.moduleCode === moduleCode)
+    // Se pregunta al servidor y no a this.data, que puede estar desactualizado
+    // (otra persona u otra pestaña pueden haber cambiado los libros)
+    async bookExists(userId, moduleCode) {
+        const books = await getDBBooks({ userId, moduleCode });
+        return books.length > 0;
     }
 
     booksFromUser(userId) {
